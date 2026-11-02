@@ -1,0 +1,136 @@
+generator client { provider = "prisma-client-js" }
+datasource db { provider = "mysql"
+  url = env("DATABASE_URL") }
+
+enum Status { ACTIVE SUSPENDED INACTIVE }
+
+model Tenant {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  status    Status   @default(ACTIVE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  company      Company?
+  branches     Branch[]
+  departments  Department[]
+  designations Designation[]
+  users        User[]
+  roles        Role[]
+  auditLogs    AuditLog[]
+}
+model Company {
+  id        String  @id @default(cuid())
+  tenantId  String  @unique
+  name      String
+  gstin     String?
+  phone     String?
+  address   String?
+  timezone  String  @default("Asia/Kolkata")
+  logoUrl   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant  @relation(fields: [tenantId], references: [id])
+}
+model Branch {
+  id        String  @id @default(cuid())
+  tenantId  String
+  name      String
+  code      String
+  address   String?
+  isActive  Boolean @default(true)
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant  @relation(fields: [tenantId], references: [id])
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+model Department {
+  id        String  @id @default(cuid())
+  tenantId  String
+  name      String
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant  @relation(fields: [tenantId], references: [id])
+  @@unique([tenantId, name])
+}
+model Designation {
+  id        String  @id @default(cuid())
+  tenantId  String
+  name      String
+  createdAt DateTime @default(now())
+  tenant    Tenant  @relation(fields: [tenantId], references: [id])
+  @@unique([tenantId, name])
+}
+model User {
+  id           String  @id @default(cuid())
+  tenantId     String?
+  email        String  @unique
+  name         String
+  passwordHash String
+  isSuperAdmin Boolean @default(false)
+  status       Status  @default(ACTIVE)
+  branchId     String?
+  departmentId String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  tenant       Tenant? @relation(fields: [tenantId], references: [id])
+  roles        UserRole[]
+  refreshTokens RefreshToken[]
+  @@index([tenantId])
+}
+model Role {
+  id        String  @id @default(cuid())
+  tenantId  String?
+  name      String
+  isSystem  Boolean @default(false)
+  tenant    Tenant? @relation(fields: [tenantId], references: [id])
+  users     UserRole[]
+  permissions RolePermission[]
+  @@unique([tenantId, name])
+}
+model Permission {
+  id    String @id @default(cuid())
+  code  String @unique
+  roles RolePermission[]
+}
+model UserRole {
+  userId String
+  roleId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  @@id([userId, roleId])
+}
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  @@id([roleId, permissionId])
+}
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  familyId  String
+  tokenHash String   @unique
+  tenantId  String?
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@index([familyId])
+}
+model AuditLog {
+  id        String   @id @default(cuid())
+  tenantId  String?
+  actorId   String?
+  action    String
+  entity    String?
+  meta      Json?
+  ip        String?
+  createdAt DateTime @default(now())
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
+  @@index([tenantId, createdAt])
+}
