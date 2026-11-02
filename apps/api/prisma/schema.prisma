@@ -17,6 +17,8 @@ model Tenant {
   users        User[]
   roles        Role[]
   auditLogs    AuditLog[]
+  subscription Subscription?
+  payments     Payment[]
 }
 model Company {
   id        String  @id @default(cuid())
@@ -133,4 +135,61 @@ model AuditLog {
   createdAt DateTime @default(now())
   tenant    Tenant?  @relation(fields: [tenantId], references: [id])
   @@index([tenantId, createdAt])
+}
+
+enum Cycle { MONTHLY YEARLY }
+enum SubStatus { TRIAL ACTIVE PAST_DUE CANCELLED EXPIRED }
+enum PayStatus { CREATED PAID FAILED }
+
+model SubscriptionPlan {
+  id           String  @id @default(cuid())
+  code         String  @unique
+  name         String
+  monthlyPrice Decimal @db.Decimal(10, 2)
+  yearlyPrice  Decimal @db.Decimal(10, 2)
+  maxEmployees Int
+  maxBranches  Int
+  trialDays    Int     @default(14)
+  features     Json?
+  isActive     Boolean @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  subscriptions Subscription[]
+  payments      Payment[]
+}
+model Subscription {
+  id               String    @id @default(cuid())
+  tenantId         String    @unique
+  planId           String
+  cycle            Cycle     @default(MONTHLY)
+  status           SubStatus @default(TRIAL)
+  trialEndsAt      DateTime?
+  currentPeriodEnd DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  plan   SubscriptionPlan @relation(fields: [planId], references: [id])
+  @@index([status, currentPeriodEnd])
+}
+model Payment {
+  id                 String    @id @default(cuid())
+  tenantId           String
+  planId             String
+  cycle              Cycle
+  amount             Decimal   @db.Decimal(10, 2)
+  status             PayStatus @default(CREATED)
+  razorpayOrderId    String    @unique
+  razorpayPaymentId  String?   @unique
+  invoiceNo          String?   @unique
+  createdAt          DateTime  @default(now())
+  paidAt             DateTime?
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  plan   SubscriptionPlan @relation(fields: [planId], references: [id])
+  @@index([tenantId, createdAt])
+}
+model WebhookEvent {
+  id        String   @id @default(cuid())
+  eventId   String   @unique
+  type      String
+  createdAt DateTime @default(now())
 }

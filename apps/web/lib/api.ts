@@ -5,3 +5,4 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (!r.ok) throw new Error((await r.json().catch(() => ({}))).message || "Request failed");
   return r.json();
 }
+export const inr = (n: number | string) => "₹" + Number(n).toLocaleString("en-IN");

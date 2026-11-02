@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query } from "@nestjs/common";
+import { Body, Controller, ForbiddenException, Get, Post, Query } from "@nestjs/common";
 import { IsOptional, IsString, MinLength } from "class-validator";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuthUser, CurrentUser, RequirePerms, SuperAdminOnly } from "../common/auth.types";
@@ -16,6 +16,9 @@ export class OrgController {
   }
   @RequirePerms("branch:create") @Post("branches")
   async addBranch(@CurrentUser() u: AuthUser, @Body() d: BranchDto) {
+    const sub = await this.db.subscription.findUnique({ where: { tenantId: tid(u) }, include: { plan: true } });
+    if (!sub || sub.status === "EXPIRED" || sub.status === "CANCELLED" || (sub.status === "TRIAL" && sub.trialEndsAt! < new Date())) throw new ForbiddenException("Subscription inactive. Please subscribe.");
+    if (await this.db.branch.count({ where: { tenantId: tid(u), deletedAt: null } }) >= sub.plan.maxBranches) throw new ForbiddenException("Branch limit reached for your plan");
     const b = await this.db.branch.create({ data: { ...d, tenantId: tid(u) } });
     await this.db.auditLog.create({ data: { tenantId: tid(u), actorId: u.sub, action: "BRANCH_CREATED", entity: b.id } });
     return b;

@@ -41,6 +41,8 @@ export class AuthService {
         if (name === "Company Owner") ownerRoleId = r.id;
       }
       const u = await tx.user.create({ data: { tenantId: t.id, email: d.email, name: d.name, passwordHash: hash, roles: { create: { roleId: ownerRoleId } } } });
+      const plan = await tx.subscriptionPlan.findFirst({ where: { code: "STARTER" } });
+      if (plan) await tx.subscription.create({ data: { tenantId: t.id, planId: plan.id, status: "TRIAL", trialEndsAt: new Date(Date.now() + plan.trialDays * 864e5) } });
       await tx.auditLog.create({ data: { tenantId: t.id, actorId: u.id, action: "COMPANY_REGISTERED" } });
       return u;
     });
