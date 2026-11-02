@@ -6,3 +6,8 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   return r.json();
 }
 export const inr = (n: number | string) => "₹" + Number(n).toLocaleString("en-IN");
+export async function download(path: string, name: string) {
+  const r = await fetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api") + path, { headers: { Authorization: `Bearer ${sessionStorage.getItem("at")}` } });
+  if (!r.ok) throw new Error("Download failed");
+  const a = document.createElement("a"); a.href = URL.createObjectURL(await r.blob()); a.download = name; a.click();
+}

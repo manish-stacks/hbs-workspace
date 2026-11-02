@@ -16,7 +16,7 @@ export class AuthService {
     const u = await this.db.user.findUniqueOrThrow({ where: { id: userId },
       include: { roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } } } });
     const perms = [...new Set(u.roles.flatMap(r => r.role.permissions.map(p => p.permission.code)))];
-    return { sub: u.id, tenantId: u.tenantId, isSuperAdmin: u.isSuperAdmin, roles: u.roles.map(r => r.role.name), perms, ...extra };
+    return { sub: u.id, tenantId: u.tenantId, isSuperAdmin: u.isSuperAdmin, branchId: u.branchId, departmentId: u.departmentId, roles: u.roles.map(r => r.role.name), perms, ...extra };
   }
   private sign(c: AuthUser, ttl?: string) { return this.jwt.sign({ ...c }, ttl ? { expiresIn: ttl } : {}); }
 

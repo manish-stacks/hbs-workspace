@@ -18,6 +18,7 @@ model Tenant {
   roles        Role[]
   auditLogs    AuditLog[]
   subscription Subscription?
+  employees    Employee[]
   payments     Payment[]
 }
 model Company {
@@ -28,6 +29,7 @@ model Company {
   phone     String?
   address   String?
   timezone  String  @default("Asia/Kolkata")
+  nextEmpNo Int     @default(1)
   logoUrl   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -46,6 +48,7 @@ model Branch {
   tenant    Tenant  @relation(fields: [tenantId], references: [id])
   @@unique([tenantId, code])
   @@index([tenantId])
+  employees Employee[]
 }
 model Department {
   id        String  @id @default(cuid())
@@ -56,6 +59,7 @@ model Department {
   updatedAt DateTime @updatedAt
   tenant    Tenant  @relation(fields: [tenantId], references: [id])
   @@unique([tenantId, name])
+  employees Employee[]
 }
 model Designation {
   id        String  @id @default(cuid())
@@ -64,6 +68,7 @@ model Designation {
   createdAt DateTime @default(now())
   tenant    Tenant  @relation(fields: [tenantId], references: [id])
   @@unique([tenantId, name])
+  employees Employee[]
 }
 model User {
   id           String  @id @default(cuid())
@@ -81,6 +86,7 @@ model User {
   roles        UserRole[]
   refreshTokens RefreshToken[]
   @@index([tenantId])
+  employee Employee?
 }
 model Role {
   id        String  @id @default(cuid())
@@ -192,4 +198,65 @@ model WebhookEvent {
   eventId   String   @unique
   type      String
   createdAt DateTime @default(now())
+}
+
+enum EmploymentType { FULL_TIME PART_TIME CONTRACT INTERN }
+enum EmpStatus { ACTIVE ARCHIVED EXITED }
+model Employee {
+  id             String  @id @default(cuid())
+  tenantId       String
+  employeeCode   String
+  fullName       String
+  email          String?
+  mobile         String?
+  dob            DateTime? @db.Date
+  gender         String?
+  address        String? @db.Text
+  emergencyContact String?
+  joiningDate    DateTime @db.Date
+  employmentType EmploymentType @default(FULL_TIME)
+  status         EmpStatus @default(ACTIVE)
+  designationId  String?
+  departmentId   String?
+  branchId       String?
+  managerId      String?
+  userId         String? @unique
+  photoUrl       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  designation Designation? @relation(fields: [designationId], references: [id])
+  department  Department?  @relation(fields: [departmentId], references: [id])
+  branch      Branch?      @relation(fields: [branchId], references: [id])
+  manager     Employee?    @relation("Reports", fields: [managerId], references: [id])
+  reports     Employee[]   @relation("Reports")
+  user        User?        @relation(fields: [userId], references: [id])
+  bank        EmployeeBankDetails?
+  transfers   EmployeeTransfer[]
+  @@unique([tenantId, employeeCode])
+  @@unique([tenantId, email])
+  @@index([tenantId, branchId])
+  @@index([tenantId, departmentId])
+  @@index([tenantId, status])
+}
+model EmployeeBankDetails {
+  id            String @id @default(cuid())
+  employeeId    String @unique
+  bankName      String?
+  accountNumber String?
+  ifsc          String?
+  employee      Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+model EmployeeTransfer {
+  id           String   @id @default(cuid())
+  tenantId     String
+  employeeId   String
+  fromBranchId String?
+  toBranchId   String?
+  fromDepartmentId String?
+  toDepartmentId   String?
+  createdById  String
+  createdAt    DateTime @default(now())
+  employee     Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  @@index([tenantId, employeeId])
 }
