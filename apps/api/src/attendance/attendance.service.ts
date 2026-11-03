@@ -3,6 +3,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { AuthUser } from "../common/auth.types";
 import { scope } from "../hr/scope";
 import { FaceService } from "./face.service";
+import { ShiftService } from "../shifts/shifts.service";
 import { haversine, localDate, toDay } from "./util";
 
 const tenant = (u: AuthUser) => scope({ ...u, branchId: null, departmentId: null }).tenantId;
@@ -12,7 +13,7 @@ const dOrU = (s?: string) => (s ? new Date(s) : undefined);
 
 @Injectable()
 export class AttendanceService {
-  constructor(private db: PrismaService, private face: FaceService) {}
+  constructor(private db: PrismaService, private face: FaceService, private shifts: ShiftService) {}
   private async tz(t: string) { return (await this.db.company.findUnique({ where: { tenantId: t } }))?.timezone ?? "Asia/Kolkata"; }
   private async me(u: AuthUser) {
     const e = await this.db.employee.findFirst({ where: { userId: u.sub, tenantId: tenant(u), status: "ACTIVE" }, include: { branch: true } });
@@ -57,18 +58,20 @@ export class AttendanceService {
       if (!buf || buf.length > 200000 || buf[0] !== 0xff || buf[1] !== 0xd8) return fail("A valid selfie photo is required");
       extra.selfie = buf;   // TODO: move to S3 once configured
     }
-    const wd = localDate(now, await this.tz(t)); let rec;
+    const tz = await this.tz(t); let wd = localDate(now, tz); let win: any = null;
+    if (d.type === "CHECK_IN") { win = await this.shifts.windowFor(emp, now, tz); if (win) wd = win.workDate; }   // night shifts keep the shift-start date
+    let rec;
     try {
       if (d.type === "CHECK_IN") {
         const ex = await this.db.attendance.findUnique({ where: { tenantId_employeeId_workDate: { tenantId: t, employeeId: emp.id, workDate: wd } } });
         if (ex?.checkInAt) return fail("You have already checked in today");
-        const data = { status: "PRESENT" as const, checkInAt: now, method: d.method, branchId: emp.branchId };
+        const data = { status: "PRESENT" as const, checkInAt: now, method: d.method, branchId: emp.branchId, shiftId: win?.shift.id ?? null, isLate: !!win && win.lateMinutes > 0, lateMinutes: win?.lateMinutes ?? 0 };
         rec = ex ? await this.db.attendance.update({ where: { id: ex.id }, data }) : await this.db.attendance.create({ data: { tenantId: t, employeeId: emp.id, workDate: wd, ...data } });
       } else {   // overnight-safe: close the latest open check-in from the last 20h
         const open = await this.db.attendance.findFirst({ where: { tenantId: t, employeeId: emp.id, checkInAt: { gte: new Date(now.getTime() - 20 * 36e5) }, checkOutAt: null }, orderBy: { checkInAt: "desc" } });
         if (!open) return fail("No open check-in found");
         const mins = Math.round((+now - +open.checkInAt!) / 60000);
-        rec = await this.db.attendance.update({ where: { id: open.id }, data: { checkOutAt: now, workMinutes: mins, ...(["PRESENT", "HALF_DAY"].includes(open.status) ? { status: mins < 240 ? "HALF_DAY" : "PRESENT" } : {}) } });
+        rec = await this.db.attendance.update({ where: { id: open.id }, data: await this.shifts.closeData(open, now, tz) });
       }
     } catch (e: any) { if (e.code === "P2002") return fail("You have already checked in today"); throw e; }
     await log(true, undefined, { ...extra, attendanceId: rec.id });
@@ -79,12 +82,23 @@ export class AttendanceService {
     const t = tenant(u), wd = toDay(date || new Date().toISOString());
     if (isNaN(+wd)) throw new BadRequestException("Invalid date");
     const emps = await this.db.employee.findMany({ where: { ...scope(u), status: "ACTIVE", joiningDate: { lte: wd } }, orderBy: { fullName: "asc" }, take: 1000,
-      select: { id: true, fullName: true, employeeCode: true, branch: { select: { name: true } }, department: { select: { name: true } }, faceTemplate: { select: { id: true } } } });
-    const recs = await this.db.attendance.findMany({ where: { tenantId: t, workDate: wd, employeeId: { in: emps.map(e => e.id) } } });
+      select: { id: true, fullName: true, employeeCode: true, branchId: true, departmentId: true, branch: { select: { name: true } }, department: { select: { name: true } }, faceTemplate: { select: { id: true } } } });
+    const [recs, res] = await Promise.all([this.db.attendance.findMany({ where: { tenantId: t, workDate: wd, employeeId: { in: emps.map(e => e.id) } } }), this.shifts.bulkResolve(t, wd, emps)]);
     const map = new Map(recs.map(r => [r.employeeId, r]));
-    const rows = emps.map(e => ({ employee: { id: e.id, fullName: e.fullName, employeeCode: e.employeeCode, branch: e.branch?.name, department: e.department?.name, faceEnrolled: !!e.faceTemplate }, attendance: map.get(e.id) ?? null }));
-    const c = (s: string) => rows.filter(r => r.attendance?.status === s).length;
-    return { date: wd.toISOString().slice(0, 10), summary: { total: rows.length, present: c("PRESENT"), halfDay: c("HALF_DAY"), absent: c("ABSENT"), onLeave: c("ON_LEAVE"), weeklyOff: c("WEEKLY_OFF"), holiday: c("HOLIDAY"), notMarked: rows.filter(r => !r.attendance).length }, rows };
+    const rows = emps.map(e => { const r = res.get(e.id)!, a = map.get(e.id) ?? null, expected = r.holiday ? "HOLIDAY" : r.weekOff ? "WEEKLY_OFF" : null;
+      return { employee: { id: e.id, fullName: e.fullName, employeeCode: e.employeeCode, branch: e.branch?.name, department: e.department?.name, faceEnrolled: !!e.faceTemplate },
+        attendance: a, shift: r.shift ? { code: r.shift.code, name: r.shift.name } : null, expected, effective: a?.status ?? expected }; });
+    const c = (st: string) => rows.filter(r => r.effective === st).length;
+    return { date: wd.toISOString().slice(0, 10), summary: { total: rows.length, present: c("PRESENT"), halfDay: c("HALF_DAY"), absent: c("ABSENT"), onLeave: c("ON_LEAVE"), weeklyOff: c("WEEKLY_OFF"), holiday: c("HOLIDAY"), notMarked: rows.filter(r => !r.effective).length }, rows };
+  }
+  /** Close out a completed day: unmarked employees become HOLIDAY / WEEKLY_OFF / ABSENT. */
+  async finalize(u: AuthUser, date: string) {
+    const t = tenant(u), wd = toDay(date);
+    if (isNaN(+wd) || wd >= localDate(new Date(), await this.tz(t))) throw new BadRequestException("Only completed past days can be finalized");
+    const d = await this.daily(u, date), todo = d.rows.filter(r => !r.attendance);
+    const r = await this.db.attendance.createMany({ skipDuplicates: true, data: todo.map(x => ({ tenantId: t, employeeId: x.employee.id, workDate: wd, status: (x.expected ?? "ABSENT") as any, method: "MANUAL" as const, note: "Auto-finalized" })) });
+    await this.db.auditLog.create({ data: { tenantId: t, actorId: u.sub, action: "ATTENDANCE_FINALIZED", entity: date, meta: { created: r.count } } });
+    return { created: r.count };
   }
 
   private async write(u: AuthUser, empId: string, branchId: string | null, workDate: string, f: { status: any; checkInAt?: Date; checkOutAt?: Date }, note: string, action: string) {

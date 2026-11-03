@@ -9,12 +9,14 @@ import { EmployeesService } from "./hr/employees.service";
 import { AttendanceController, FaceController } from "./attendance/attendance.controller";
 import { AttendanceService } from "./attendance/attendance.service";
 import { FaceService } from "./attendance/face.service";
+import { HolidaysController, ShiftsController } from "./shifts/shifts.controller";
+import { ShiftService } from "./shifts/shifts.service";
 import { AuthModule } from "./auth/auth.module";
 import { OrgController } from "./companies/org.controller";
 import { AccessGuard, JwtAuthGuard } from "./common/guards";
 @Module({
   imports: [ThrottlerModule.forRoot([{ ttl: 60000, limit: 120 }]), PrismaModule, AuthModule, BillingModule],
-  controllers: [OrgController, AdminController, EmployeesController, AttendanceController, FaceController],
-  providers: [EmployeesService, AttendanceService, FaceService, { provide: APP_GUARD, useClass: ThrottlerGuard }, { provide: APP_GUARD, useClass: JwtAuthGuard }, { provide: APP_GUARD, useClass: AccessGuard }],
+  controllers: [OrgController, AdminController, EmployeesController, AttendanceController, FaceController, ShiftsController, HolidaysController],
+  providers: [EmployeesService, AttendanceService, FaceService, ShiftService, { provide: APP_GUARD, useClass: ThrottlerGuard }, { provide: APP_GUARD, useClass: JwtAuthGuard }, { provide: APP_GUARD, useClass: AccessGuard }],
 })
 export class AppModule {}

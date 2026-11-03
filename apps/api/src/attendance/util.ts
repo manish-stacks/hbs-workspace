@@ -18,3 +18,11 @@ export function decryptVec(s: string): number[] {
 }
 export const validVec = (v: any): v is number[] => Array.isArray(v) && v.length === 128 && v.every(x => typeof x === "number" && isFinite(x));
 export const euclid = (a: number[], b: number[]) => Math.sqrt(a.reduce((s, x, i) => s + (x - b[i]) ** 2, 0));
+
+function tzOffsetMs(t: number, tz: string) {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }).formatToParts(new Date(t));
+  const g = (k: string) => +parts.find(p => p.type === k)!.value;
+  return Date.UTC(g("year"), g("month") - 1, g("day"), g("hour"), g("minute"), g("second")) - Math.floor(t / 1000) * 1000;
+}
+/** Local wall-clock (day + minutes after midnight) in `tz` -> UTC instant. */
+export const zonedToUtc = (day: Date, minutes: number, tz: string) => { const guess = day.getTime() + minutes * 60000; return new Date(guess - tzOffsetMs(guess, tz)); };

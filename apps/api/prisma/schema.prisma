@@ -23,6 +23,11 @@ model Tenant {
   attendanceLogs AttendanceLog[]
   corrections  AttendanceCorrection[]
   faceTemplates FaceTemplate[]
+  shifts Shift[]
+  shiftAssignments ShiftAssignment[]
+  shiftSchedules ShiftSchedule[]
+  swaps ShiftSwapRequest[]
+  holidays Holiday[]
   payments     Payment[]
 }
 model Company {
@@ -243,6 +248,10 @@ model Employee {
   attendances Attendance[]
   corrections AttendanceCorrection[]
   faceTemplate FaceTemplate?
+  shiftAssignments ShiftAssignment[]
+  shiftSchedules ShiftSchedule[]
+  swapsRequested ShiftSwapRequest[] @relation("SwapReq")
+  swapsTargeted ShiftSwapRequest[] @relation("SwapTarget")
   @@unique([tenantId, employeeCode])
   @@unique([tenantId, email])
   @@index([tenantId, branchId])
@@ -296,6 +305,9 @@ model Attendance {
   @@unique([tenantId, employeeId, workDate])
   @@index([tenantId, workDate])
   @@index([employeeId, checkInAt])
+  shiftId     String?
+  lateMinutes Int @default(0)
+  shift       Shift? @relation(fields: [shiftId], references: [id])
 }
 model AttendanceLog {
   id            String    @id @default(cuid())
@@ -346,4 +358,87 @@ model FaceTemplate {
   updatedAt      DateTime @updatedAt
   tenant   Tenant   @relation(fields: [tenantId], references: [id])
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+enum ShiftType { GENERAL MORNING EVENING NIGHT ROTATIONAL FLEXIBLE SPLIT CUSTOM }
+enum HolidayType { COMPANY OPTIONAL }
+enum SwapStatus { PENDING ACCEPTED APPROVED REJECTED }
+model Shift {
+  id            String    @id @default(cuid())
+  tenantId      String
+  name          String
+  code          String
+  type          ShiftType @default(GENERAL)
+  startMinute   Int
+  endMinute     Int
+  breakMinutes  Int       @default(0)
+  graceMinutes  Int       @default(0)
+  earlyOutGraceMinutes Int @default(0)
+  minWorkMinutes Int      @default(0)
+  overtimeEnabled Boolean @default(false)
+  overtimeAfterMinutes Int @default(0)
+  weeklyOffDays String    @default("0")
+  branchId      String?
+  departmentId  String?
+  effectiveFrom DateTime  @db.Date
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  tenant      Tenant @relation(fields: [tenantId], references: [id])
+  assignments ShiftAssignment[]
+  schedules   ShiftSchedule[]
+  attendances Attendance[]
+  @@unique([tenantId, code])
+}
+model ShiftAssignment {
+  id          String   @id @default(cuid())
+  tenantId    String
+  employeeId  String
+  shiftId     String
+  fromDate    DateTime @db.Date
+  toDate      DateTime? @db.Date
+  isTemporary Boolean  @default(false)
+  createdById String
+  createdAt   DateTime @default(now())
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  shift    Shift    @relation(fields: [shiftId], references: [id])
+  @@index([tenantId, employeeId, fromDate])
+}
+model ShiftSchedule {
+  id         String   @id @default(cuid())
+  tenantId   String
+  employeeId String
+  date       DateTime @db.Date
+  shiftId    String?
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  shift    Shift?   @relation(fields: [shiftId], references: [id])
+  @@unique([tenantId, employeeId, date])
+}
+model ShiftSwapRequest {
+  id          String     @id @default(cuid())
+  tenantId    String
+  requesterId String
+  targetId    String
+  date        DateTime   @db.Date
+  status      SwapStatus @default(PENDING)
+  decidedById String?
+  createdAt   DateTime   @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  requester Employee @relation("SwapReq", fields: [requesterId], references: [id], onDelete: Cascade)
+  target    Employee @relation("SwapTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  @@index([tenantId, status])
+}
+model Holiday {
+  id           String      @id @default(cuid())
+  tenantId     String
+  name         String
+  date         DateTime    @db.Date
+  type         HolidayType @default(COMPANY)
+  branchId     String?
+  departmentId String?
+  createdAt    DateTime    @default(now())
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  @@index([tenantId, date])
 }

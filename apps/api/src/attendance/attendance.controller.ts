@@ -14,6 +14,7 @@ class PunchDto {
 class ManualDto { @IsString() employeeId: string; @IsDateString() workDate: string; @IsIn(STATUS) status: string; @IsOptional() @IsDateString() checkInAt?: string; @IsOptional() @IsDateString() checkOutAt?: string; @IsString() @MinLength(3) note: string }
 class BulkDto { @IsDateString() workDate: string; @IsIn(STATUS) status: string; @IsArray() @ArrayMaxSize(500) @IsString({ each: true }) employeeIds: string[]; @IsString() @MinLength(3) note: string }
 class CorrDto { @IsDateString() workDate: string; @IsOptional() @IsIn(STATUS) requestedStatus?: string; @IsOptional() @IsDateString() requestedIn?: string; @IsOptional() @IsDateString() requestedOut?: string; @IsString() @MinLength(5) reason: string }
+class FinalizeDto { @IsDateString() date: string }
 class DecideDto { @IsOptional() @IsString() note?: string }
 class EnrollDto { @IsOptional() @IsString() employeeId?: string; @IsArray() @ArrayMaxSize(128) @IsNumber({}, { each: true }) descriptor: number[]; @IsBoolean() consent: boolean; @IsBoolean() liveness: boolean; @IsString() challengeId: string }
 
@@ -31,6 +32,7 @@ export class AttendanceController {
   @RequirePerms("attendance:reject") @Post("corrections/:id/reject") reject(@CurrentUser() u: AuthUser, @Param("id") id: string, @Body() d: DecideDto) { return this.s.decide(u, id, false, d.note); }
   @RequirePerms("attendance:view") @Get("daily") daily(@CurrentUser() u: AuthUser, @Query("date") date: string) { return this.s.daily(u, date); }
   @RequirePerms("attendance:edit") @Post("manual") manual(@CurrentUser() u: AuthUser, @Body() d: ManualDto) { return this.s.manual(u, d); }
+  @RequirePerms("attendance:manage") @Post("finalize") finalize(@CurrentUser() u: AuthUser, @Body() d: FinalizeDto) { return this.s.finalize(u, d.date); }
   @RequirePerms("attendance:edit") @Post("bulk") bulk(@CurrentUser() u: AuthUser, @Body() d: BulkDto) { return this.s.bulk(u, d); }
 }
 
