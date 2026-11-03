@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/logo";
 import { MeProvider, can, useMe } from "@/components/me";
-const NAV: [string, string, string][] = [["/app/dashboard", "Dashboard", ""], ["/app/employees", "Employees", "employee:view"], ["/app/attendance", "Attendance", "attendance:view"], ["/app/shifts", "Shifts", "shift:view"], ["/app/holidays", "Holidays", "shift:view"], ["/app/leaves", "Leaves", "leave:view"], ["/app/branches", "Branches", "branch:view"],
+const NAV: [string, string, string][] = [["/app/dashboard", "Dashboard", ""], ["/app/employees", "Employees", "employee:view"], ["/app/attendance", "Attendance", "attendance:view"], ["/app/shifts", "Shifts", "shift:view"], ["/app/holidays", "Holidays", "shift:view"], ["/app/leaves", "Leaves", "leave:view"], ["/app/payroll", "Payroll", "payroll:view"], ["/app/branches", "Branches", "branch:view"],
   ["/app/departments", "Departments", "department:view"], ["/app/settings", "Settings", "company:view"], ["/app/billing", "Billing", "setting:manage"]];
 function Shell({ children }: { children: React.ReactNode }) {
   const me = useMe(), path = usePathname();

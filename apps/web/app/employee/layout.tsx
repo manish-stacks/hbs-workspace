@@ -8,6 +8,7 @@ function Shell({ children }: { children: React.ReactNode }) {
     <Link href="/employee/attendance" className="text-sm font-semibold hover:text-brand-red">Attendance</Link>
     <Link href="/employee/shifts" className="text-sm font-semibold hover:text-brand-red">Shifts</Link>
     <Link href="/employee/leaves" className="text-sm font-semibold hover:text-brand-red">Leaves</Link>
+    <Link href="/employee/payslips" className="text-sm font-semibold hover:text-brand-red">Payslips</Link>
     <span className="ml-auto hidden text-sm text-brand-muted sm:block">{me.name}</span><button className="text-sm text-brand-muted" onClick={() => { sessionStorage.clear(); location.href = "/login"; }}>Logout</button></header>
     <div className="mx-auto max-w-3xl space-y-4 p-4">{children}</div></div>);
 }
