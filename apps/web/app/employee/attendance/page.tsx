@@ -33,7 +33,7 @@ export default function EmpAttendance() {
       <div className="mt-2 flex gap-8 text-sm"><span>In: <b>{tm((open ?? rec)?.checkInAt)}</b></span><span>Out: <b>{tm(rec?.checkOutAt)}</b></span><span>Status: <b>{rec?.status ?? (open ? "PRESENT" : "—")}</b></span></div>
       <div className="mt-4 flex flex-wrap items-center gap-2"><select className={inp + " max-w-[10rem]"} value={method} onChange={e => setMethod(e.target.value)}><option value="FACE">Face</option><option value="SELFIE">Selfie</option><option value="GPS">GPS only</option></select>
         <Button disabled={busy || !!open} onClick={() => start("CHECK_IN")}>Check in</Button><Button variant="dark" disabled={busy || !open} onClick={() => start("CHECK_OUT")}>Check out</Button></div>
-      {method === "FACE" && t && !t.face.enrolled && <p className="mt-2 text-sm text-brand-red">Register your face below before using face attendance.</p></Card>
+      {method === "FACE" && t && !t.face.enrolled && <p className="mt-2 text-sm text-brand-red">Register your face below before using face attendance.</p>}</Card>
     <Card><h2 className="mb-2 font-bold">Face registration</h2>
       <p className="text-sm text-brand-muted">{t?.face.enrolled ? `Registered on ${new Date(t.face.consentAt).toLocaleDateString()}.` : "Not registered."} Your face template is stored encrypted and used only for attendance verification. You can withdraw consent at any time.</p>
       <label className="mt-2 flex items-start gap-2 text-sm"><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} className="mt-1" />I consent to my facial biometric data being processed by my employer for attendance.</label>
