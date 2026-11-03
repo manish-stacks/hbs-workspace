@@ -1,12 +1,12 @@
 import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, NotFoundException, Param, Patch, Post, Put } from "@nestjs/common";
-import { ArrayMaxSize, IsArray, IsOptional, IsString, MinLength } from "class-validator";
+import { ArrayMaxSize, IsArray, IsInt, IsNumber, IsOptional, IsString, Max, Min, MinLength } from "class-validator";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuthUser, CurrentUser, RequirePerms } from "../common/auth.types";
 import { ALL_PERMISSIONS } from "../common/permissions";
 import { scope } from "./scope";
 
 class CompanyDto { @IsOptional() @IsString() @MinLength(2) name?: string; @IsOptional() @IsString() gstin?: string; @IsOptional() @IsString() phone?: string; @IsOptional() @IsString() address?: string; @IsOptional() @IsString() timezone?: string }
-class BranchPatch { @IsOptional() @IsString() @MinLength(2) name?: string; @IsOptional() @IsString() address?: string }
+class BranchPatch { @IsOptional() @IsString() @MinLength(2) name?: string; @IsOptional() @IsString() address?: string; @IsOptional() @IsNumber() @Min(-90) @Max(90) latitude?: number; @IsOptional() @IsNumber() @Min(-180) @Max(180) longitude?: number; @IsOptional() @IsInt() @Min(20) @Max(5000) radiusMeters?: number }
 class NameDto { @IsString() @MinLength(2) name: string }
 class RoleDto { @IsString() @MinLength(2) name: string; @IsArray() @ArrayMaxSize(200) @IsString({ each: true }) permissions: string[] }
 class AccessDto { @IsArray() @IsString({ each: true }) roleIds: string[]; @IsOptional() @IsString() branchId?: string; @IsOptional() @IsString() departmentId?: string }

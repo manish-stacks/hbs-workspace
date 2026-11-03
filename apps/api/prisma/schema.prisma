@@ -19,6 +19,10 @@ model Tenant {
   auditLogs    AuditLog[]
   subscription Subscription?
   employees    Employee[]
+  attendances  Attendance[]
+  attendanceLogs AttendanceLog[]
+  corrections  AttendanceCorrection[]
+  faceTemplates FaceTemplate[]
   payments     Payment[]
 }
 model Company {
@@ -49,6 +53,9 @@ model Branch {
   @@unique([tenantId, code])
   @@index([tenantId])
   employees Employee[]
+  latitude Float?
+  longitude Float?
+  radiusMeters Int?
 }
 model Department {
   id        String  @id @default(cuid())
@@ -233,6 +240,9 @@ model Employee {
   user        User?        @relation(fields: [userId], references: [id])
   bank        EmployeeBankDetails?
   transfers   EmployeeTransfer[]
+  attendances Attendance[]
+  corrections AttendanceCorrection[]
+  faceTemplate FaceTemplate?
   @@unique([tenantId, employeeCode])
   @@unique([tenantId, email])
   @@index([tenantId, branchId])
@@ -259,4 +269,81 @@ model EmployeeTransfer {
   createdAt    DateTime @default(now())
   employee     Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   @@index([tenantId, employeeId])
+}
+
+enum AttStatus { PRESENT ABSENT HALF_DAY WEEKLY_OFF HOLIDAY ON_LEAVE }
+enum AttMethod { FACE SELFIE GPS MANUAL }
+enum CorrStatus { PENDING APPROVED REJECTED }
+model Attendance {
+  id          String    @id @default(cuid())
+  tenantId    String
+  employeeId  String
+  workDate    DateTime  @db.Date
+  status      AttStatus @default(PRESENT)
+  checkInAt   DateTime?
+  checkOutAt  DateTime?
+  workMinutes Int?
+  isLate      Boolean   @default(false)
+  isEarlyOut  Boolean   @default(false)
+  overtimeMinutes Int   @default(0)
+  method      AttMethod
+  branchId    String?
+  note        String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id])
+  @@unique([tenantId, employeeId, workDate])
+  @@index([tenantId, workDate])
+  @@index([employeeId, checkInAt])
+}
+model AttendanceLog {
+  id            String    @id @default(cuid())
+  tenantId      String
+  employeeId    String?
+  attendanceId  String?
+  type          String
+  method        AttMethod
+  success       Boolean
+  failReason    String?
+  lat           Float?
+  lng           Float?
+  distanceM     Float?
+  matchDistance Float?
+  deviceInfo    String?
+  ip            String?
+  selfie        Bytes?    @db.MediumBlob
+  createdAt     DateTime  @default(now())
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  @@index([tenantId, employeeId, createdAt])
+}
+model AttendanceCorrection {
+  id              String     @id @default(cuid())
+  tenantId        String
+  employeeId      String
+  workDate        DateTime   @db.Date
+  requestedStatus AttStatus?
+  requestedIn     DateTime?
+  requestedOut    DateTime?
+  reason          String
+  status          CorrStatus @default(PENDING)
+  reviewedById    String?
+  reviewNote      String?
+  reviewedAt      DateTime?
+  createdAt       DateTime   @default(now())
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id])
+  @@index([tenantId, status])
+}
+model FaceTemplate {
+  id             String   @id @default(cuid())
+  tenantId       String
+  employeeId     String   @unique
+  encTemplate    String   @db.Text
+  consentAt      DateTime
+  consentVersion String   @default("v1")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }

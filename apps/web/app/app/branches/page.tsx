@@ -8,7 +8,8 @@ import { api } from "@/lib/api";
 export default function Branches() {
   const me = useMe(); const [rows, setRows] = useState<any[] | null>(null); const [m, setM] = useState<any>(null); const [err, setErr] = useState("");
   const load = () => api<any[]>("/branches").then(setRows).catch(e => setErr(e.message)); useEffect(() => { load(); }, []);
-  const save = async () => { try { m.id ? await api(`/branches/${m.id}`, { method: "PATCH", body: JSON.stringify({ name: m.name, address: m.address || undefined }) })
+  const num = (v: any) => (v === "" || v == null ? undefined : Number(v));
+  const save = async () => { const geo = { latitude: num(m.latitude), longitude: num(m.longitude), radiusMeters: num(m.radiusMeters) }; try { m.id ? await api(`/branches/${m.id}`, { method: "PATCH", body: JSON.stringify({ name: m.name, address: m.address || undefined, ...geo }) })
     : await api("/branches", { method: "POST", body: JSON.stringify({ name: m.name, code: m.code, address: m.address || undefined }) }); setM(null); setErr(""); load(); } catch (e: any) { setErr(String(e.message)); } };
   const del = async (b: any) => { if (confirm(`Delete ${b.name}?`)) try { await api(`/branches/${b.id}`, { method: "DELETE" }); load(); } catch (e: any) { setErr(e.message); } };
   return (<div className="space-y-4"><div className="flex items-center"><h1 className="mr-auto text-2xl font-bold">Branches</h1>{can(me, "branch:create") && <Button onClick={() => setM({ name: "", code: "", address: "" })}>Add branch</Button>}</div>
@@ -20,5 +21,9 @@ export default function Branches() {
     {m && <Modal title={m.id ? "Edit branch" : "Add branch"} onClose={() => setM(null)}><div className="space-y-3">
       <Field label="Name"><input className={inp} value={m.name} onChange={e => setM({ ...m, name: e.target.value })} /></Field>
       {!m.id && <Field label="Code (unique)"><input className={inp} value={m.code} onChange={e => setM({ ...m, code: e.target.value })} /></Field>}
-      <Field label="Address"><input className={inp} value={m.address ?? ""} onChange={e => setM({ ...m, address: e.target.value })} /></Field><Button onClick={save}>Save</Button></div></Modal>}</div>);
+      <Field label="Address"><input className={inp} value={m.address ?? ""} onChange={e => setM({ ...m, address: e.target.value })} /></Field>
+      {m.id && <><p className="text-xs text-brand-muted">Attendance geofence (optional). When set, employees of this branch must punch within the radius.</p>
+        <div className="grid grid-cols-3 gap-2"><Field label="Latitude"><input className={inp} value={m.latitude ?? ""} onChange={e => setM({ ...m, latitude: e.target.value })} /></Field><Field label="Longitude"><input className={inp} value={m.longitude ?? ""} onChange={e => setM({ ...m, longitude: e.target.value })} /></Field><Field label="Radius (m)"><input className={inp} value={m.radiusMeters ?? ""} onChange={e => setM({ ...m, radiusMeters: e.target.value })} /></Field></div>
+        <button type="button" className="text-sm font-semibold text-brand-red" onClick={() => navigator.geolocation.getCurrentPosition(p => setM({ ...m, latitude: p.coords.latitude.toFixed(6), longitude: p.coords.longitude.toFixed(6), radiusMeters: m.radiusMeters || 200 }))}>Use my current location</button></>}
+      <Button onClick={save}>Save</Button></div></Modal>}</div>);
 }

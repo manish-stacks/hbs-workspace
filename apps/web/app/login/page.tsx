@@ -20,8 +20,8 @@ export default function Login() {
     try {
       const t = await api<{ accessToken: string; refreshToken: string }>(reg ? "/auth/register-company" : "/auth/login", { method: "POST", body: JSON.stringify(d) });
       sessionStorage.setItem("at", t.accessToken); sessionStorage.setItem("rt", t.refreshToken);
-      const me = await api<{ isSuperAdmin: boolean }>("/auth/me");
-      location.href = me.isSuperAdmin ? "/super-admin/dashboard" : "/app/dashboard";
+      const me = await api<{ isSuperAdmin: boolean; perms: string[] }>("/auth/me");
+      location.href = me.isSuperAdmin ? "/super-admin/dashboard" : me.perms.length ? "/app/dashboard" : "/employee/attendance";
     } catch (e: any) { setMsg(e.message); }
   };
   return (<main className="grid min-h-screen place-items-center bg-brand-bg p-4">

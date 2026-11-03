@@ -6,6 +6,7 @@ import helmet from "helmet";
 import { AppModule } from "./app.module";
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
+  app.useBodyParser("json", { limit: "1mb" });
   app.use(helmet());
   app.setGlobalPrefix("api");
   app.enableCors({ origin: process.env.WEB_URL, credentials: true });

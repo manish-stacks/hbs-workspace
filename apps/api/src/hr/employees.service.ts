@@ -82,6 +82,7 @@ export class EmployeesService {
     await this.db.$transaction([
       this.db.employee.update({ where: { id }, data: { status: "ARCHIVED" } }),
       ...(cur.userId ? [this.db.user.update({ where: { id: cur.userId }, data: { status: "INACTIVE" } })] : []),
+      this.db.faceTemplate.deleteMany({ where: { employeeId: id } }),  // biometric retention: purge on archive
       this.db.auditLog.create({ data: { tenantId: cur.tenantId, actorId: u.sub, action: "EMPLOYEE_ARCHIVED", entity: id } }) ]);
     return { ok: true };
   }
