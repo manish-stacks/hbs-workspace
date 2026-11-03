@@ -28,6 +28,10 @@ model Tenant {
   shiftSchedules ShiftSchedule[]
   swaps ShiftSwapRequest[]
   holidays Holiday[]
+  leaveTypes LeaveType[]
+  leavePolicies LeavePolicy[]
+  leaveBalances LeaveBalance[]
+  leaveApplications LeaveApplication[]
   payments     Payment[]
 }
 model Company {
@@ -252,6 +256,8 @@ model Employee {
   shiftSchedules ShiftSchedule[]
   swapsRequested ShiftSwapRequest[] @relation("SwapReq")
   swapsTargeted ShiftSwapRequest[] @relation("SwapTarget")
+  leaveBalances LeaveBalance[]
+  leaveApplications LeaveApplication[]
   @@unique([tenantId, employeeCode])
   @@unique([tenantId, email])
   @@index([tenantId, branchId])
@@ -441,4 +447,84 @@ model Holiday {
   createdAt    DateTime    @default(now())
   tenant Tenant @relation(fields: [tenantId], references: [id])
   @@index([tenantId, date])
+}
+
+enum LeaveStatus { PENDING APPROVED REJECTED CANCELLED }
+model LeaveType {
+  id          String  @id @default(cuid())
+  tenantId    String
+  name        String
+  code        String
+  isPaid      Boolean @default(true)
+  annualQuota Decimal @db.Decimal(6, 1) @default(0)
+  carryForwardMax Decimal @db.Decimal(6, 1) @default(0)
+  encashable  Boolean @default(false)
+  allowHalfDay Boolean @default(true)
+  approvalLevels Int  @default(1)
+  genderRestriction String?
+  isActive    Boolean @default(true)
+  createdAt   DateTime @default(now())
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  policies LeavePolicy[]
+  balances LeaveBalance[]
+  applications LeaveApplication[]
+  @@unique([tenantId, code])
+}
+model LeavePolicy {
+  id          String  @id @default(cuid())
+  tenantId    String
+  leaveTypeId String
+  branchId    String?
+  departmentId String?
+  annualQuota Decimal @db.Decimal(6, 1)
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+}
+model LeaveBalance {
+  id          String  @id @default(cuid())
+  tenantId    String
+  employeeId  String
+  leaveTypeId String
+  year        Int
+  allocated   Decimal @db.Decimal(6, 1) @default(0)
+  carriedForward Decimal @db.Decimal(6, 1) @default(0)
+  used        Decimal @db.Decimal(6, 1) @default(0)
+  pending     Decimal @db.Decimal(6, 1) @default(0)
+  encashed    Decimal @db.Decimal(6, 1) @default(0)
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  employee  Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id])
+  @@unique([employeeId, leaveTypeId, year])
+  @@index([tenantId, year])
+}
+model LeaveApplication {
+  id          String  @id @default(cuid())
+  tenantId    String
+  employeeId  String
+  leaveTypeId String
+  fromDate    DateTime @db.Date
+  toDate      DateTime @db.Date
+  isHalfDay   Boolean @default(false)
+  isEmergency Boolean @default(false)
+  days        Decimal @db.Decimal(6, 1)
+  reason      String
+  status      LeaveStatus @default(PENDING)
+  currentLevel Int    @default(1)
+  createdAt   DateTime @default(now())
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  employee  Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id])
+  approvals LeaveApproval[]
+  @@index([tenantId, status])
+  @@index([employeeId, fromDate])
+}
+model LeaveApproval {
+  id            String @id @default(cuid())
+  applicationId String
+  level         Int
+  approverId    String
+  decision      String
+  note          String?
+  decidedAt     DateTime @default(now())
+  application LeaveApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 }

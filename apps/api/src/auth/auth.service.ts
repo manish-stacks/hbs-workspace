@@ -5,6 +5,7 @@ import { createHash, randomBytes, randomUUID } from "crypto";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuthUser } from "../common/auth.types";
 import { ROLE_PRESETS } from "../common/permissions";
+import { DEFAULT_LEAVE_TYPES } from "../leaves/leave.logic";
 
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
 
@@ -40,6 +41,7 @@ export class AuthService {
           permissions: { create: perms.filter(p => codes.includes(p.code)).map(p => ({ permissionId: p.id })) } } });
         if (name === "Company Owner") ownerRoleId = r.id;
       }
+      await tx.leaveType.createMany({ data: DEFAULT_LEAVE_TYPES.map(x => ({ ...x, tenantId: t.id })) });
       const u = await tx.user.create({ data: { tenantId: t.id, email: d.email, name: d.name, passwordHash: hash, roles: { create: { roleId: ownerRoleId } } } });
       const plan = await tx.subscriptionPlan.findFirst({ where: { code: "STARTER" } });
       if (plan) await tx.subscription.create({ data: { tenantId: t.id, planId: plan.id, status: "TRIAL", trialEndsAt: new Date(Date.now() + plan.trialDays * 864e5) } });
