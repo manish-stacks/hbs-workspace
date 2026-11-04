@@ -4,7 +4,6 @@ import IORedis from "ioredis";
 import { createTransport } from "nodemailer";
 import { join } from "path";
 import { PrismaService } from "../prisma/prisma.service";
-import { CelebrationService } from "./celebrations.service";
 import { esc } from "./logic";
 
 /** Redis/BullMQ plumbing. If REDIS_URL is unset the queues are disabled (jobs can still be run manually). */
@@ -45,18 +44,4 @@ export class NotificationService {
   }
   async list(userId: string) { const [items, unread] = await Promise.all([this.db.notification.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 50 }), this.db.notification.count({ where: { userId, readAt: null } })]); return { items, unread }; }
   async read(userId: string, ids?: string[]) { await this.db.notification.updateMany({ where: { userId, readAt: null, ...(ids?.length ? { id: { in: ids } } : {}) }, data: { readAt: new Date() } }); return { ok: true }; }
-}
-
-/** Registers BullMQ workers + the hourly celebration scheduler. */
-@Injectable()
-export class WorkersService implements OnModuleInit {
-  constructor(private q: QueueService, private mail: MailService, private cel: CelebrationService) {}
-  async onModuleInit() {
-    if (!this.q.enabled) { console.warn("[jobs] REDIS_URL not set — background jobs disabled (use 'Run now' in Celebrations)."); return; }
-    const w = this.q.worker("email", async job => { await this.mail.send(job.data); await this.mail.markResult(job.data.logId, true); });
-    w?.on("failed", (job, err) => { if (job && job.attemptsMade >= (job.opts.attempts ?? 1)) this.mail.markResult(job.data.logId, false, err.message.slice(0, 250)); });
-    this.q.worker("celebrations", async () => this.cel.runDaily());
-    await this.q.queue("celebrations")!.upsertJobScheduler("celebrations-hourly", { pattern: "0 * * * *" }, { name: "daily" });
-    console.log("[jobs] workers started; celebration check runs hourly");
-  }
 }
