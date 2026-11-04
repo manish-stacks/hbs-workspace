@@ -15,12 +15,15 @@ import { LeavesController } from "./leaves/leaves.controller";
 import { LeaveService } from "./leaves/leaves.service";
 import { PayrollController } from "./payroll/payroll.controller";
 import { PayrollService } from "./payroll/payroll.service";
+import { CelebrationsController, NotificationsController } from "./celebrations/celebrations.controller";
+import { CelebrationService } from "./celebrations/celebrations.service";
+import { MailService, NotificationService, QueueService, WorkersService } from "./celebrations/infra";
 import { AuthModule } from "./auth/auth.module";
 import { OrgController } from "./companies/org.controller";
 import { AccessGuard, JwtAuthGuard } from "./common/guards";
 @Module({
   imports: [ThrottlerModule.forRoot([{ ttl: 60000, limit: 120 }]), PrismaModule, AuthModule, BillingModule],
-  controllers: [OrgController, AdminController, EmployeesController, AttendanceController, FaceController, ShiftsController, HolidaysController, LeavesController, PayrollController],
-  providers: [EmployeesService, AttendanceService, FaceService, ShiftService, LeaveService, PayrollService, { provide: APP_GUARD, useClass: ThrottlerGuard }, { provide: APP_GUARD, useClass: JwtAuthGuard }, { provide: APP_GUARD, useClass: AccessGuard }],
+  controllers: [OrgController, AdminController, EmployeesController, AttendanceController, FaceController, ShiftsController, HolidaysController, LeavesController, PayrollController, CelebrationsController, NotificationsController],
+  providers: [EmployeesService, AttendanceService, FaceService, ShiftService, LeaveService, PayrollService, QueueService, MailService, NotificationService, CelebrationService, WorkersService, { provide: APP_GUARD, useClass: ThrottlerGuard }, { provide: APP_GUARD, useClass: JwtAuthGuard }, { provide: APP_GUARD, useClass: AccessGuard }],
 })
 export class AppModule {}

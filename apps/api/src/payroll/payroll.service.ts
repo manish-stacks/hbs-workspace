@@ -5,6 +5,7 @@ import { csvCell, scope } from "../hr/scope";
 import { localDate, toDay } from "../attendance/util";
 import { ShiftService } from "../shifts/shifts.service";
 import { DEFAULT_CFG, PayCfg, PayInput, calcPay, paise, rupees } from "./payroll.logic";
+import { NotificationService } from "../celebrations/infra";
 import { SlipData, slipsToBuffer } from "./payslip.pdf";
 
 const tenant = (u: AuthUser) => scope({ ...u, branchId: null, departmentId: null }).tenantId;
@@ -17,7 +18,7 @@ const NAMES: Record<string, string> = { basic: "Basic", hra: "HRA", da: "DA", co
 
 @Injectable()
 export class PayrollService {
-  constructor(private db: PrismaService, private shifts: ShiftService) {}
+  constructor(private db: PrismaService, private shifts: ShiftService, private notes: NotificationService) {}
   private async tz(t: string) { return (await this.db.company.findUnique({ where: { tenantId: t } }))?.timezone ?? "Asia/Kolkata"; }
   async cfg(t: string): Promise<PayCfg> { const r = await this.db.companySetting.findUnique({ where: { tenantId_key: { tenantId: t, key: "payroll" } } }); return { ...DEFAULT_CFG, ...((r?.value as any) ?? {}) }; }
   getSettings(u: AuthUser) { return this.cfg(tenant(u)); }
@@ -123,6 +124,8 @@ export class PayrollService {
         if (inp.adjustment) await tx.payrollAdjustment.updateMany({ where: { tenantId: t, employeeId: i.employeeId, appliedRunId: null, targetMonth: { lte: run.month } }, data: { appliedRunId: id } }); }
       await tx.payrollRun.update({ where: { id }, data: { status: "LOCKED", lockedById: u.sub, lockedAt: new Date() } });
       await tx.auditLog.create({ data: { tenantId: t, actorId: u.sub, action: "PAYROLL_LOCKED", entity: id, meta: { month: run.month, net: String(run.totalNet) } } }); });
+    const us = await this.db.employee.findMany({ where: { id: { in: items.map(i => i.employeeId) }, userId: { not: null } }, select: { userId: true } });
+    await this.notes.notify(t, us.map(x => x.userId!), { type: "PAYSLIP", title: "Payslip generated", body: `Your payslip for ${label(run.month)} is ready.`, link: "/employee/payslips" });
     return { ok: true, payslips: items.length };
   }
   private log(u: AuthUser, action: string, entity: string) { return this.db.auditLog.create({ data: { tenantId: tenant(u), actorId: u.sub, action, entity } }); }

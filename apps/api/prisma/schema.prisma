@@ -40,6 +40,9 @@ model Tenant {
   payslips Payslip[]
   payrollAdjustments PayrollAdjustment[]
   companySettings CompanySetting[]
+  notifications Notification[]
+  celebrationTemplates CelebrationTemplate[]
+  celebrationEvents CelebrationEvent[]
 }
 model Company {
   id        String  @id @default(cuid())
@@ -110,6 +113,7 @@ model User {
   refreshTokens RefreshToken[]
   @@index([tenantId])
   employee Employee?
+  notifications Notification[]
 }
 model Role {
   id        String  @id @default(cuid())
@@ -275,6 +279,7 @@ model Employee {
   payrollItems PayrollItem[]
   payslips Payslip[]
   payrollAdjustments PayrollAdjustment[]
+  celebrationEvents CelebrationEvent[]
 }
 model EmployeeBankDetails {
   id            String @id @default(cuid())
@@ -651,4 +656,51 @@ model PayrollAdjustment {
   createdAt    DateTime @default(now())
   tenant   Tenant   @relation(fields: [tenantId], references: [id])
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String
+  type      String
+  title     String
+  body      String   @db.Text
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, readAt, createdAt])
+}
+model CelebrationTemplate {
+  id       String @id @default(cuid())
+  tenantId String
+  kind     String
+  subject  String
+  body     String @db.Text
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  @@unique([tenantId, kind])
+}
+model CelebrationEvent {
+  id         String   @id @default(cuid())
+  tenantId   String
+  employeeId String
+  kind       String
+  year       Int
+  years      Int?
+  createdAt  DateTime @default(now())
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  logs     CelebrationLog[]
+  @@unique([employeeId, kind, year])
+  @@index([tenantId, createdAt])
+}
+model CelebrationLog {
+  id        String   @id @default(cuid())
+  eventId   String
+  channel   String
+  status    String
+  detail    String?
+  createdAt DateTime @default(now())
+  event CelebrationEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 }

@@ -4,6 +4,7 @@ import { AuthUser } from "../common/auth.types";
 import { scope } from "../hr/scope";
 import { localDate, toDay } from "../attendance/util";
 import { ShiftService } from "../shifts/shifts.service";
+import { NotificationService } from "../celebrations/infra";
 import { DEFAULT_LEAVE_TYPES, carryAmount, remaining, resolveQuota } from "./leave.logic";
 
 const tenant = (u: AuthUser) => scope({ ...u, branchId: null, departmentId: null }).tenantId;
@@ -13,7 +14,7 @@ const view = (b: any) => ({ ...b, allocated: +b.allocated, carriedForward: +b.ca
 
 @Injectable()
 export class LeaveService {
-  constructor(private db: PrismaService, private shifts: ShiftService) {}
+  constructor(private db: PrismaService, private shifts: ShiftService, private notes: NotificationService) {}
   private async tz(t: string) { return (await this.db.company.findUnique({ where: { tenantId: t } }))?.timezone ?? "Asia/Kolkata"; }
   private async meOrFail(u: AuthUser) { const e = await this.db.employee.findFirst({ where: { userId: u.sub, tenantId: tenant(u), status: "ACTIVE" } }); if (!e) throw new BadRequestException("No employee profile is linked to your login"); return e; }
 
@@ -122,6 +123,7 @@ export class LeaveService {
       }
       await tx.auditLog.create({ data: { tenantId: t, actorId: u.sub, action: approve ? "LEAVE_APPROVED" : "LEAVE_REJECTED", entity: id, meta: { level: a.currentLevel, note } } });
     });
+    if (a.employee.userId && (!approve || a.currentLevel >= a.leaveType.approvalLevels)) await this.notes.notify(t, [a.employee.userId], { type: "LEAVE", title: `Leave ${approve ? "approved" : "rejected"}`, body: `${a.leaveType.name}: ${a.fromDate.toISOString().slice(0, 10)} to ${a.toDate.toISOString().slice(0, 10)}${note ? ` — ${note}` : ""}`, link: "/employee/leaves" });
     return { ok: true };
   }
   async cancel(u: AuthUser, id: string) {

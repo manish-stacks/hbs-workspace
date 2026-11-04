@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
+import { Bell } from "@/components/bell";
 import { MeProvider, useMe } from "@/components/me";
 function Shell({ children }: { children: React.ReactNode }) {
   const me = useMe();
@@ -9,7 +10,7 @@ function Shell({ children }: { children: React.ReactNode }) {
     <Link href="/employee/shifts" className="text-sm font-semibold hover:text-brand-red">Shifts</Link>
     <Link href="/employee/leaves" className="text-sm font-semibold hover:text-brand-red">Leaves</Link>
     <Link href="/employee/payslips" className="text-sm font-semibold hover:text-brand-red">Payslips</Link>
-    <span className="ml-auto hidden text-sm text-brand-muted sm:block">{me.name}</span><button className="text-sm text-brand-muted" onClick={() => { sessionStorage.clear(); location.href = "/login"; }}>Logout</button></header>
+    <span className="ml-auto"><Bell allHref="/employee/notifications" /></span><span className=" hidden text-sm text-brand-muted sm:block">{me.name}</span><button className="text-sm text-brand-muted" onClick={() => { sessionStorage.clear(); location.href = "/login"; }}>Logout</button></header>
     <div className="mx-auto max-w-3xl space-y-4 p-4">{children}</div></div>);
 }
 export default function L({ children }: { children: React.ReactNode }) { return <MeProvider><Shell>{children}</Shell></MeProvider>; }
