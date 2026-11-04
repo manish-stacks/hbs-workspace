@@ -19,12 +19,14 @@ import { CelebrationsController, NotificationsController } from "./celebrations/
 import { CelebrationService } from "./celebrations/celebrations.service";
 import { MailService, NotificationService, QueueService } from "./celebrations/infra";
 import { WorkersService } from "./celebrations/workers";
+import { CrmController } from "./crm/crm.controller";
+import { CrmService } from "./crm/crm.service";
 import { AuthModule } from "./auth/auth.module";
 import { OrgController } from "./companies/org.controller";
 import { AccessGuard, JwtAuthGuard } from "./common/guards";
 @Module({
   imports: [ThrottlerModule.forRoot([{ ttl: 60000, limit: 120 }]), PrismaModule, AuthModule, BillingModule],
-  controllers: [OrgController, AdminController, EmployeesController, AttendanceController, FaceController, ShiftsController, HolidaysController, LeavesController, PayrollController, CelebrationsController, NotificationsController],
-  providers: [EmployeesService, AttendanceService, FaceService, ShiftService, LeaveService, PayrollService, QueueService, MailService, NotificationService, CelebrationService, WorkersService, { provide: APP_GUARD, useClass: ThrottlerGuard }, { provide: APP_GUARD, useClass: JwtAuthGuard }, { provide: APP_GUARD, useClass: AccessGuard }],
+  controllers: [OrgController, AdminController, EmployeesController, AttendanceController, FaceController, ShiftsController, HolidaysController, LeavesController, PayrollController, CelebrationsController, NotificationsController, CrmController],
+  providers: [EmployeesService, AttendanceService, FaceService, ShiftService, LeaveService, PayrollService, QueueService, MailService, NotificationService, CelebrationService, CrmService, WorkersService, { provide: APP_GUARD, useClass: ThrottlerGuard }, { provide: APP_GUARD, useClass: JwtAuthGuard }, { provide: APP_GUARD, useClass: AccessGuard }],
 })
 export class AppModule {}

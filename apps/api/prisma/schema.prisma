@@ -43,6 +43,11 @@ model Tenant {
   notifications Notification[]
   celebrationTemplates CelebrationTemplate[]
   celebrationEvents CelebrationEvent[]
+  crmLeads CrmLead[]
+  crmCustomers CrmCustomer[]
+  crmDeals CrmDeal[]
+  crmActivitys CrmActivity[]
+  crmTargets CrmTarget[]
 }
 model Company {
   id        String  @id @default(cuid())
@@ -703,4 +708,95 @@ model CelebrationLog {
   detail    String?
   createdAt DateTime @default(now())
   event CelebrationEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
+
+enum LeadStatus { NEW CONTACTED INTERESTED CONVERTED LOST }
+enum Priority { LOW MEDIUM HIGH }
+enum DealStage { NEW_LEAD CONTACTED INTERESTED PROPOSAL NEGOTIATION WON LOST }
+enum ActivityKind { CALL MEETING TASK FOLLOW_UP NOTE }
+model CrmLead {
+  id        String     @id @default(cuid())
+  tenantId  String
+  name      String
+  company   String?
+  email     String?
+  phone     String?
+  source    String     @default("Other")
+  status    LeadStatus @default(NEW)
+  priority  Priority   @default(MEDIUM)
+  ownerId   String
+  nextFollowUpAt DateTime?
+  notes     String?    @db.Text
+  convertedCustomerId String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  tenant     Tenant @relation(fields: [tenantId], references: [id])
+  activities CrmActivity[]
+  @@index([tenantId, status])
+  @@index([tenantId, ownerId])
+}
+model CrmCustomer {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  company   String?
+  email     String?
+  phone     String?
+  address   String?  @db.Text
+  ownerId   String
+  notes     String?  @db.Text
+  createdAt DateTime @default(now())
+  tenant     Tenant @relation(fields: [tenantId], references: [id])
+  deals      CrmDeal[]
+  activities CrmActivity[]
+  @@index([tenantId, ownerId])
+}
+model CrmDeal {
+  id        String    @id @default(cuid())
+  tenantId  String
+  title     String
+  customerId String
+  leadId    String?
+  value     Decimal   @db.Decimal(14, 2)
+  stage     DealStage @default(NEW_LEAD)
+  expectedClose DateTime? @db.Date
+  ownerId   String
+  lostReason String?
+  closedAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  customer   CrmCustomer @relation(fields: [customerId], references: [id])
+  activities CrmActivity[]
+  @@index([tenantId, stage])
+  @@index([tenantId, ownerId])
+}
+model CrmActivity {
+  id          String       @id @default(cuid())
+  tenantId    String
+  kind        ActivityKind
+  subject     String
+  notes       String?      @db.Text
+  dueAt       DateTime?
+  doneAt      DateTime?
+  ownerId     String
+  createdById String
+  leadId      String?
+  customerId  String?
+  dealId      String?
+  createdAt   DateTime     @default(now())
+  tenant   Tenant       @relation(fields: [tenantId], references: [id])
+  lead     CrmLead?     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  customer CrmCustomer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  deal     CrmDeal?     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  @@index([tenantId, ownerId, doneAt])
+}
+model CrmTarget {
+  id       String  @id @default(cuid())
+  tenantId String
+  userId   String
+  month    String
+  amount   Decimal @db.Decimal(14, 2)
+  tenant   Tenant  @relation(fields: [tenantId], references: [id])
+  @@unique([tenantId, userId, month])
 }

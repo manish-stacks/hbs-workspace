@@ -5,6 +5,8 @@ export const ROLE_PRESETS: Record<string, string[]> = {
   "Company Owner": ALL_PERMISSIONS,
   "Company Admin": ALL_PERMISSIONS,
   "HR Manager": ALL_PERMISSIONS.filter(c => /^(employee|attendance|shift|leave|payroll|celebration|report|branch|department)/.test(c)),
+  "Sales Manager": ALL_PERMISSIONS.filter(c => c.startsWith("crm:")),
+  "Sales Executive": ["crm:view", "crm:create", "crm:edit"],
   "Branch Manager": ["employee:view","attendance:view","attendance:edit","shift:view","leave:view","leave:approve","report:view","branch:view"],
   "Employee": [],
 };
