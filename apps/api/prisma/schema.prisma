@@ -48,6 +48,16 @@ model Tenant {
   crmDeals CrmDeal[]
   crmActivitys CrmActivity[]
   crmTargets CrmTarget[]
+  expenseClaims ExpenseClaim[]
+  assets Asset[]
+  assetAssignments AssetAssignment[]
+  jobOpenings JobOpening[]
+  candidates Candidate[]
+  perfCycles PerfCycle[]
+  goals Goal[]
+  reviews Review[]
+  tickets Ticket[]
+  announcements Announcement[]
 }
 model Company {
   id        String  @id @default(cuid())
@@ -285,6 +295,11 @@ model Employee {
   payslips Payslip[]
   payrollAdjustments PayrollAdjustment[]
   celebrationEvents CelebrationEvent[]
+  expenseClaims ExpenseClaim[]
+  assetAssignments AssetAssignment[]
+  goals Goal[]
+  reviews Review[]
+  tickets Ticket[]
 }
 model EmployeeBankDetails {
   id            String @id @default(cuid())
@@ -799,4 +814,173 @@ model CrmTarget {
   amount   Decimal @db.Decimal(14, 2)
   tenant   Tenant  @relation(fields: [tenantId], references: [id])
   @@unique([tenantId, userId, month])
+}
+
+enum ExpenseStatus { PENDING APPROVED REJECTED PAID }
+enum AssetStatus { AVAILABLE ASSIGNED RETIRED }
+enum CandStage { APPLIED SCREENING INTERVIEW OFFER HIRED REJECTED }
+enum TicketStatus { OPEN IN_PROGRESS RESOLVED CLOSED }
+model ExpenseClaim {
+  id String @id @default(cuid())
+  tenantId String
+  employeeId String
+  category String
+  amount Decimal @db.Decimal(12, 2)
+  expenseDate DateTime @db.Date
+  description String
+  receipt Bytes? @db.MediumBlob
+  receiptType String?
+  status ExpenseStatus @default(PENDING)
+  reviewedById String?
+  reviewNote String?
+  paidAt DateTime?
+  createdAt DateTime @default(now())
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  @@index([tenantId, status])
+}
+model Asset {
+  id String @id @default(cuid())
+  tenantId String
+  tag String
+  name String
+  category String
+  serial String?
+  purchaseDate DateTime? @db.Date
+  status AssetStatus @default(AVAILABLE)
+  createdAt DateTime @default(now())
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  assignments AssetAssignment[]
+  @@unique([tenantId, tag])
+}
+model AssetAssignment {
+  id String @id @default(cuid())
+  tenantId String
+  assetId String
+  employeeId String
+  assignedAt DateTime @default(now())
+  returnedAt DateTime?
+  returnNote String?
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  asset    Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  @@index([tenantId, employeeId, returnedAt])
+}
+model JobOpening {
+  id String @id @default(cuid())
+  tenantId String
+  title String
+  departmentId String?
+  branchId String?
+  openings Int @default(1)
+  description String? @db.Text
+  status String @default("OPEN")
+  createdAt DateTime @default(now())
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  candidates Candidate[]
+}
+model Candidate {
+  id String @id @default(cuid())
+  tenantId String
+  jobId String
+  name String
+  email String?
+  phone String?
+  source String?
+  stage CandStage @default(APPLIED)
+  notes String? @db.Text
+  createdAt DateTime @default(now())
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  job    JobOpening @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  interviews Interview[]
+  @@index([tenantId, stage])
+}
+model Interview {
+  id String @id @default(cuid())
+  candidateId String
+  scheduledAt DateTime
+  interviewerId String?
+  mode String @default("In person")
+  status String @default("SCHEDULED")
+  rating Int?
+  feedback String? @db.Text
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+}
+model PerfCycle {
+  id String @id @default(cuid())
+  tenantId String
+  name String
+  fromDate DateTime @db.Date
+  toDate DateTime @db.Date
+  status String @default("OPEN")
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  goals Goal[]
+  reviews Review[]
+}
+model Goal {
+  id String @id @default(cuid())
+  tenantId String
+  employeeId String
+  cycleId String
+  title String
+  kpi String?
+  target String?
+  weight Int @default(100)
+  progress Int @default(0)
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  employee Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  cycle    PerfCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+}
+model Review {
+  id String @id @default(cuid())
+  tenantId String
+  employeeId String
+  cycleId String
+  selfRating Int?
+  selfComments String? @db.Text
+  mgrRating Int?
+  mgrComments String? @db.Text
+  reviewerId String?
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  employee Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  cycle    PerfCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  @@unique([cycleId, employeeId])
+}
+model Ticket {
+  id String @id @default(cuid())
+  tenantId String
+  employeeId String
+  subject String
+  description String @db.Text
+  category String @default("General")
+  priority String @default("MEDIUM")
+  status TicketStatus @default(OPEN)
+  assigneeId String?
+  resolution String? @db.Text
+  resolvedAt DateTime?
+  createdAt DateTime @default(now())
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  comments TicketComment[]
+  @@index([tenantId, status])
+}
+model TicketComment {
+  id String @id @default(cuid())
+  ticketId String
+  authorId String
+  authorName String
+  body String @db.Text
+  createdAt DateTime @default(now())
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+}
+model Announcement {
+  id String @id @default(cuid())
+  tenantId String
+  title String
+  body String @db.Text
+  pinned Boolean @default(false)
+  expiresAt DateTime?
+  createdById String
+  createdAt DateTime @default(now())
+  tenant Tenant @relation(fields: [tenantId], references: [id])
 }
