@@ -1,0 +1,19 @@
+name: CI
+on: { push: { branches: [main] }, pull_request: {} }
+jobs:
+  test-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - run: npm ci
+      - run: npx prisma validate
+        working-directory: apps/api
+        env: { DATABASE_URL: "mysql://u:p@localhost:3306/db" }
+      - run: npm -w apps/api test
+      - run: npm -w apps/api run build
+      - run: npm -w apps/web run build
+        env: { NEXT_PUBLIC_API_URL: /api }
+      - run: npm audit --omit=dev --audit-level=high
+        continue-on-error: true

@@ -24,12 +24,13 @@ import { CrmService } from "./crm/crm.service";
 import { OpsController, ReportsController } from "./ops/ops.controller";
 import { OpsService } from "./ops/ops.service";
 import { ReportsService } from "./ops/reports.service";
+import { HealthController } from "./health.controller";
 import { AuthModule } from "./auth/auth.module";
 import { OrgController } from "./companies/org.controller";
 import { AccessGuard, JwtAuthGuard } from "./common/guards";
 @Module({
   imports: [ThrottlerModule.forRoot([{ ttl: 60000, limit: 120 }]), PrismaModule, AuthModule, BillingModule],
-  controllers: [OrgController, AdminController, EmployeesController, AttendanceController, FaceController, ShiftsController, HolidaysController, LeavesController, PayrollController, CelebrationsController, NotificationsController, CrmController, OpsController, ReportsController],
+  controllers: [OrgController, AdminController, EmployeesController, AttendanceController, FaceController, ShiftsController, HolidaysController, LeavesController, PayrollController, CelebrationsController, NotificationsController, CrmController, OpsController, ReportsController, HealthController],
   providers: [EmployeesService, AttendanceService, FaceService, ShiftService, LeaveService, PayrollService, QueueService, MailService, NotificationService, CelebrationService, CrmService, OpsService, ReportsService, WorkersService, { provide: APP_GUARD, useClass: ThrottlerGuard }, { provide: APP_GUARD, useClass: JwtAuthGuard }, { provide: APP_GUARD, useClass: AccessGuard }],
 })
 export class AppModule {}
