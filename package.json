@@ -1,1 +1,18 @@
-{"name":"hbs-workspace","private":true,"workspaces":["apps/*"],"scripts":{"dev:api":"npm -w apps/api run start:dev","dev:web":"npm -w apps/web run dev","db:migrate":"npm -w apps/api run db:migrate","db:seed":"npm -w apps/api run db:seed"}}
+{
+  "name": "hbs-workspace",
+  "private": true,
+  "workspaces": [
+    "api",
+    "web"
+  ],
+  "scripts": {
+    "dev": "node -e 'const { spawn } = require(\"child_process\"); const api = spawn(\"npm\", [\"--prefix\", \"api\", \"run\", \"dev\"], { stdio: \"inherit\" }); const web = spawn(\"npm\", [\"--prefix\", \"web\", \"run\", \"dev\"], { stdio: \"inherit\" }); process.on(\"SIGINT\", () => { api.kill(); web.kill(); process.exit(); });'",
+    "dev:api": "npm --prefix api run dev",
+    "dev:web": "npm --prefix web run dev",
+    "build:api": "npm --prefix api run build",
+    "build:web": "npm --prefix web run build",
+    "build": "npm run build:api && npm run build:web",
+    "db:push": "npm --prefix api run db:push",
+    "db:seed": "npm --prefix api run db:seed"
+  }
+}
